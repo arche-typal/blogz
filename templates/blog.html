@@ -23,6 +23,8 @@
             <!--<h3>{{post.name}}</h3>-->
             
             {{post.body}}
+            <br>
+            {{post.owner.email}}
             <form method="POST" action="/delete-post">
                 <input type="hidden" name="post-id" value="{{post.id}}" />
                 <input type="submit" value="Bye, '{{post.name}}'" />

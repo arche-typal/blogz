@@ -1,4 +1,4 @@
-from flask import Flask, request, redirect, render_template 
+from flask import Flask, request, redirect, render_template, session, flash
 import cgi
 import os
 import jinja2
@@ -10,20 +10,35 @@ jinja_env = jinja2.Environment(loader = jinja2.FileSystemLoader(template_dir), a
 
 app = Flask(__name__)
 app.config['DEBUG'] = True
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://build-a-blog:cheese@localhost:8889/build-a-blog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://blogz:cheese@localhost:8889/blogz'
 app.config['SQLALCHEMY_ECHO'] = True
 
 db = SQLAlchemy(app)
+
+app.secret_key = 'QAkD6McykLGW5y9d'
 
 class Post(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120))
-    body = db.Column(db.String(500))#
+    body = db.Column(db.String(500))
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
-    def __init__(self, name, body):
+    def __init__(self, name, body, owner):
         self.name = name
         self.body = body
+        self.owner = owner
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True)
+    password = db.Column(db.String(120))
+    posts = db.relationship('Post', backref='owner')
+
+    def __init__(self, email, password):
+        self.email = email
+        self.password = password
+
 
 def check_for_space(astring):
     if len(astring) == 0:
@@ -31,16 +46,30 @@ def check_for_space(astring):
     else:
         return False
 
-@app.route('/')
-def index():
-    template = jinja_env.get_template('index.html')
-    return template.render()
+@app.before_request
+def require_login():
+    allowed_routes = ['login','register']
+    if request.endpoint not in allowed_routes and 'email' not in session:
+        return redirect('/login')
+
+#@app.route('/')
+#def index():
+#    template = jinja_env.get_template('index.html')
+#    return template.render()
 
 @app.route('/blog')
 def blog():
-    posts = Post.query.order_by(Post.id.desc()).all()
-    template = jinja_env.get_template('blog.html')
-    return template.render(posts=posts)
+    owner = User.query.all() #
+    posts = Post.query.order_by(Post.id.desc()).all() #.filter_by(owner=owner)
+    #template = jinja_env.get_template('blog.html')
+    return render_template('blog.html', posts=posts)
+
+@app.route('/userblogs')
+def userblogs():
+    owner = User.query.filter_by(email=session['email']).first() #
+    posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner).all() #.filter_by(owner=owner)
+    #template = jinja_env.get_template('blog.html')
+    return render_template('blog.html', posts=posts)
 
 
 @app.route('/addpost', methods=['POST', 'GET'])
@@ -49,29 +78,34 @@ def a_post():
     if request.method == 'POST':
         post_name = request.form['a_post'] #name= from .html
         post_body = request.form['a_body']
+        owner = User.query.filter_by(email=session['email']).first()
         post_error = ""
 
         if check_for_space(post_name) or check_for_space(post_body) or post_name.isspace() or post_body.isspace():
             post_error = "Please no posts that are empty or only spaces."
-            template = jinja_env.get_template('addpost.html') 
-            return template.render(post_name=post_name, post_body=post_body, post_error = post_error)
+            #template = jinja_env.get_template('addpost.html') 
+            #return template.render(post_name=post_name, post_body=post_body, post_error = post_error)
+            return render_template('addpost.html', post_name=post_name, post_body=post_body, post_error = post_error)
 
         else:
             #posts.append(post) #using list b4 sqlalchemy
-            new_post = Post(post_name, post_body)#### next argument?(post_name, post_body)
+            new_post = Post(post_name, post_body, owner)#### next argument?(post_name, post_body)
             db.session.add(new_post)
             db.session.commit()
 
-            template = jinja_env.get_template('viewblog2.html')
-            return template.render(post_name=post_name, post_body=post_body)
+            #template = jinja_env.get_template('viewblog2.html')
+            #return template.render(post_name=post_name, post_body=post_body)
+            return render_template('viewblog2.html', post_name=post_name, post_body=post_body)
 
 
     posts = Post.query.all()
 
     #b4jinja#return render_template('addpost.html', title ="A POST", posts=posts)
        
-    template = jinja_env.get_template('addpost.html') 
-    return template.render(posts=posts) #variables auto ="", no need to set-up
+    #template = jinja_env.get_template('addpost.html') 
+    #return template.render(posts=posts) #variables auto ="", no need to set-up
+
+    return render_template('addpost.html', posts=posts)
 
 
 @app.route('/delete-post', methods=["POST"])
@@ -90,9 +124,57 @@ def view_post():
     post_id = int(request.args.get('post-id'))
     post = Post.query.get(post_id)
 
-    template = jinja_env.get_template('viewblog.html')
-    return template.render(post=post)
-    
+    #template = jinja_env.get_template('viewblog.html')
+    #return template.render(post=post)
+    return render_template('viewblog.html', post=post)
+
+##
+
+@app.route('/login', methods=['POST','GET'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        user = User.query.filter_by(email=email).first()
+        if user and user.password == password:
+            #TODO - "remember" that user has logged in
+            session['email'] = email
+            flash("Logged in")
+            return redirect('/blog')
+        else:
+            #TODO - explain why login failed
+            flash("User password incorrect, or user does not exist", "error")
+            #return redirect('/login')
+
+    return render_template('login.html')
+
+@app.route('/register', methods=['POST','GET'])
+def register():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        verify = request.form['verify']
+        
+        #TODO - validate email and password
+
+        existing_user = User.query.filter_by(email=email).first()
+        if not existing_user:
+            new_user = User(email, password)
+            db.session.add(new_user)
+            db.session.commit()
+            #TODO - "remember" the user
+            session['email'] = email
+            return redirect('/blog')
+        else:
+            #TODO - user better response messaging
+            return '<h1>Duplicate user!</h1>'
+
+    return render_template('register.html')
+
+@app.route('/logout')
+def logout():
+    del session['email']
+    return redirect('/blog')
 
 if __name__ == '__main__':
     app.run()

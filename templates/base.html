@@ -2,13 +2,30 @@
 <html>
     <head>
         <title>{{title}}</title>
+        <style>
+            .error {
+                color: red;
+            }
+        </style>
     </head>
     <nav>
         <a href="/addpost">Create a new post</a>
         <a href="/blog">Blog page</a>
+        <a href="/logout">Logout</a>
+        <a href="/userblogs">View Only Your Blogs</a>
     </nav>
 
 <body>
+    {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+            <ul>
+            {% for category,message in messages %}
+                <li class="{{category}}">{{message}}</li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
     {% block content %}
     {% endblock %}
 </body>
