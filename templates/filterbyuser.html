@@ -1,17 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!---Hi
-    <h1>Post Form</h1>
-    <form method='post'>
-        <label>
-            Add Post:
-            <input type="text" name='a_post' />
-        </label>
-        <input type="submit" value='Add Post' />
-    </form>
-
-    <hr />-->
     
     {% if posts|length == 0 %}
     <p>No posts yet</p>
@@ -19,12 +8,12 @@
 
         <ul>
             {% for post in posts %}
-            <a href="/view-post?post-ideal={{post.id}}"><h3>{{post.name}}</h3></a>
+            <a href="/view-post?post-id={{post.id}}"><h3>{{post.name}}</h3></a>
             <!--<h3>{{post.name}}</h3>-->
             
             {{post.body}}
             <br>
-            Written by {{post.owner.email}}
+            {{post.owner.email}}
             <!--<form method="POST" action="/delete-post">
                 <input type="hidden" name="post-id" value="{{post.id}}" />
                 <input type="submit" value="Bye, '{{post.name}}'" />

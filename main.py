@@ -59,10 +59,31 @@ def require_login():
 
 @app.route('/blog')
 def blog():
-    owner = User.query.all() #
+    owner = User.query.all() 
     posts = Post.query.order_by(Post.id.desc()).all() #.filter_by(owner=owner)
     #template = jinja_env.get_template('blog.html')
     return render_template('blog.html', posts=posts)
+
+###
+@app.route('/blogselecteduser')  #userblogs #########post.owner.email, owner = User.que...filter_by
+def blogselecteduser():
+    if request.method == 'GET':  
+        owner_id = int(request.args.get('user'))
+        owner = User.query.get(owner_id)
+        owner_email = User.query.filter_by(email=owner.email).first()
+        posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner_email).all() #.filter_by(owner=owner)
+        return render_template('blog.html', posts=posts)
+    
+    owner = User.query.filter_by(email=session['email']).first() #
+    posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner).all() #.filter_by(owner=owner)
+    #template = jinja_env.get_template('blog.html')
+    return render_template('blog.html', posts=posts)
+
+###
+@app.route('/allusers')
+def allusers():
+    owners = User.query.all()
+    return render_template('allusers.html', owners=owners)
 
 @app.route('/userblogs')
 def userblogs():
@@ -121,12 +142,15 @@ def delete_post():
 @app.route('/view-post', methods=['POST', 'GET'])
 def view_post():
     
-    post_id = int(request.args.get('post-id'))
+    post_id = int(request.args.get('post-ideal'))
     post = Post.query.get(post_id)
 
     #template = jinja_env.get_template('viewblog.html')
     #return template.render(post=post)
     return render_template('viewblog.html', post=post)
+
+
+#    
 
 ##
 
