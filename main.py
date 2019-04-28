@@ -59,6 +59,13 @@ def require_login():
 
 @app.route('/blog')
 def blog():
+    if request.method == 'GET':  
+        owner_id = int(request.args.get('user'))
+        owner = User.query.get(owner_id)
+        owner_email = User.query.filter_by(email=owner.email).first()
+        posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner_email).all() #.filter_by(owner=owner)
+        return render_template('blog.html', posts=posts)
+
     owner = User.query.all() 
     posts = Post.query.order_by(Post.id.desc()).all() #.filter_by(owner=owner)
     #template = jinja_env.get_template('blog.html')
@@ -67,12 +74,6 @@ def blog():
 ###
 @app.route('/blogselecteduser')  #userblogs #########post.owner.email, owner = User.que...filter_by
 def blogselecteduser():
-    if request.method == 'GET':  
-        owner_id = int(request.args.get('user'))
-        owner = User.query.get(owner_id)
-        owner_email = User.query.filter_by(email=owner.email).first()
-        posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner_email).all() #.filter_by(owner=owner)
-        return render_template('blog.html', posts=posts)
     
     owner = User.query.filter_by(email=session['email']).first() #
     posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner).all() #.filter_by(owner=owner)
