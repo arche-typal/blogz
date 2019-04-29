@@ -59,8 +59,9 @@ def require_login():
 
 @app.route('/blog')
 def blog():
-    if request.method == 'GET':  
-        owner_id = int(request.args.get('user'))
+    owner_id = request.args.get('user')
+    if request.method == 'GET' and owner_id:  
+        owner_int = int(owner_id)
         owner = User.query.get(owner_id)
         owner_email = User.query.filter_by(email=owner.email).first()
         posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner_email).all() #.filter_by(owner=owner)
