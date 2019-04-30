@@ -46,9 +46,22 @@ def check_for_space(astring):
     else:
         return False
 
+def is_three(astring):
+    len_string = len(astring)
+    if len_string > 3:
+        return False
+    else:
+        return True
+
+def same_password(astring,astringtwo):
+	if astring == astringtwo:
+		return False
+	else:
+		return True
+
 @app.before_request
 def require_login():
-    allowed_routes = ['login','register']
+    allowed_routes = ['login','usersignup','allusers'] #usersignup ###/ home
     if request.endpoint not in allowed_routes and 'email' not in session:
         return redirect('/login')
 
@@ -57,23 +70,24 @@ def require_login():
 #    template = jinja_env.get_template('index.html')
 #    return template.render()
 
-@app.route('/blog')
+@app.route('/blog') #/
 def blog():
+    owner = User.query.all()
     owner_id = request.args.get('user')
     if request.method == 'GET' and owner_id:  
         owner_int = int(owner_id)
         owner = User.query.get(owner_id)
         owner_email = User.query.filter_by(email=owner.email).first()
         posts = Post.query.order_by(Post.id.desc()).filter_by(owner=owner_email).all() #.filter_by(owner=owner)
-        return render_template('blog.html', posts=posts)
+        return render_template('blog.html', posts=posts, owner=owner)
 
-    owner = User.query.all() 
+     
     posts = Post.query.order_by(Post.id.desc()).all() #.filter_by(owner=owner)
     #template = jinja_env.get_template('blog.html')
-    return render_template('blog.html', posts=posts)
+    return render_template('blog.html', posts=posts, owner=owner)
 
 ###
-@app.route('/blogselecteduser')  #userblogs #########post.owner.email, owner = User.que...filter_by
+@app.route('/singleUser')  #userblogs #########post.owner.email, owner = User.que...filter_by
 def blogselecteduser():
     
     owner = User.query.filter_by(email=session['email']).first() #
@@ -82,10 +96,10 @@ def blogselecteduser():
     return render_template('blog.html', posts=posts)
 
 ###
-@app.route('/allusers')
-def allusers():
+@app.route('/') ##/
+def allusers(): ###/ home
     owners = User.query.all()
-    return render_template('allusers.html', owners=owners)
+    return render_template('index.html', owners=owners) #index.html
 
 @app.route('/userblogs')
 def userblogs():
@@ -97,6 +111,8 @@ def userblogs():
 
 @app.route('/addpost', methods=['POST', 'GET'])
 def a_post():
+    
+    post = Post.query.all()
 
     if request.method == 'POST':
         post_name = request.form['a_post'] #name= from .html
@@ -118,17 +134,19 @@ def a_post():
 
             #template = jinja_env.get_template('viewblog2.html')
             #return template.render(post_name=post_name, post_body=post_body)
-            return render_template('viewblog2.html', post_name=post_name, post_body=post_body)
+            
+            return render_template('viewblog2.html', post_name=post_name, post_body=post_body, owner=owner)
+            #return render_template('viewblog.html', post=post)
 
 
-    posts = Post.query.all()
+    
 
     #b4jinja#return render_template('addpost.html', title ="A POST", posts=posts)
        
     #template = jinja_env.get_template('addpost.html') 
     #return template.render(posts=posts) #variables auto ="", no need to set-up
 
-    return render_template('addpost.html', posts=posts)
+    return render_template('addpost.html', post=post)
 
 
 @app.route('/delete-post', methods=["POST"])
@@ -139,7 +157,7 @@ def delete_post():
     db.session.delete(post)
     db.session.commit() 
 
-    return redirect('/blog') 
+    return redirect('/blog') #/
 
 @app.route('/view-post', methods=['POST', 'GET'])
 def view_post():
@@ -166,7 +184,7 @@ def login():
             #TODO - "remember" that user has logged in
             session['email'] = email
             flash("Logged in")
-            return redirect('/blog')
+            return redirect('/addpost')
         else:
             #TODO - explain why login failed
             flash("User password incorrect, or user does not exist", "error")
@@ -174,33 +192,52 @@ def login():
 
     return render_template('login.html')
 
-@app.route('/register', methods=['POST','GET'])
-def register():
+@app.route('/usersignup', methods=['POST','GET']) #usersignup
+def usersignup(): #usersignup
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
         verify = request.form['verify']
-        
-        #TODO - validate email and password
 
         existing_user = User.query.filter_by(email=email).first()
-        if not existing_user:
-            new_user = User(email, password)
-            db.session.add(new_user)
-            db.session.commit()
-            #TODO - "remember" the user
-            session['email'] = email
-            return redirect('/blog')
-        else:
-            #TODO - user better response messaging
-            return '<h1>Duplicate user!</h1>'
 
-    return render_template('register.html')
+        #TODO - validate email and password
+
+        #BLANKS EMAIL
+        if check_for_space(email) or email.isspace():
+            flash("Please no blanks or space in email.", "error")
+        #<3 CHAR EMAIL
+        elif is_three(email):
+            flash("Please create an email greater than 3 characters.", "error")
+        #DUPLICATE USER
+        elif existing_user:
+            flash("User already exists", "error")
+
+        if same_password(password,verify):
+            flash("Passwords do not match","error")
+        elif check_for_space(password) or password.isspace():
+            flash("Please no blanks or space in password.", "error")
+        elif is_three(password):
+            flash("Please enter a password greater than 3","error")
+        
+            #TODO - user better response messaging
+            #return render_template('register.html') #'<h1>Duplicate user!</h1>' #usersignup
+
+        else:
+            if not existing_user:
+                new_user = User(email, password)
+                db.session.add(new_user)
+                db.session.commit()
+                #TODO - "remember" the user
+                session['email'] = email
+                return redirect('/addpost')
+            
+    return render_template('usersignup.html') #usersignup
 
 @app.route('/logout')
 def logout():
     del session['email']
-    return redirect('/blog')
+    return redirect('/blog') #/
 
 if __name__ == '__main__':
     app.run()
